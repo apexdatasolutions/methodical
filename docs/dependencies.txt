@@ -1,0 +1,520 @@
+======================
+Level 0
+======================
+
+(ns methodical.interface
+  (:refer-clojure :exclude [isa? prefers])
+  (:require clojure.core))	
+
+(ns methodical.impl.dispatcher.common
+  "Utility functions for implementing Dispatchers.")
+  
+(ns methodical.impl.combo.common
+  "Utility functions for implementing method combinations.")  
+
+(ns methodical.impl.method-table.common
+  (:require [clojure.string :as str]))
+      
+(ns methodical.util.describe
+  (:require [clojure.datafy :as datafy]
+            [potemkin.types :as p.types]))
+
+(ns methodical.util.dispatch
+  "Common dispatch function definitions.")
+ 
+(ns ^:no-doc methodical.macros.validate-arities
+  (:require
+   [clojure.data :as data]
+   [clojure.set :as set]
+   [clojure.spec.alpha :as s]))   
+
+
+======================
+Level 1
+======================
+
+(ns methodical.impl.standard
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [clojure.datafy :as datafy]
+   [methodical.interface :as i]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (clojure.lang Named)
+   (methodical.interface Dispatcher MethodCombination MethodTable MultiFnImpl)))
+
+(ns methodical.impl.cache.simple
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [methodical.interface]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (methodical.interface Cache)))   
+  
+(ns methodical.impl.cache.watching
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [clojure.datafy :as datafy]
+   [methodical.interface :as i]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (java.lang.ref WeakReference)
+   (methodical.interface Cache)))
+
+(ns methodical.impl.combo.clojure
+  "Simple method combination strategy that mimics the way vanilla Clojure multimethods combine methods; that is, to say,
+  not at all. Like vanilla Clojure multimethods, this method combination only supports primary methods."
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [methodical.interface]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (methodical.interface MethodCombination)))
+
+(ns methodical.impl.combo.clos
+  "Method combination strategy that mimics the standard method combination in the Common Lisp Object System (CLOS).
+  Supports `:before`, `:after`, and `:around` auxiliary methods. The values returned by `:before` and `:after` methods
+  are ignored. Primary methods and around methods get an implicit `next-method` arg (see Methodical dox for more on
+  what this means)."
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [methodical.impl.combo.common :as combo.common]
+   [methodical.interface]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (methodical.interface MethodCombination)))
+   
+(ns methodical.impl.combo.operator
+  (:refer-clojure :exclude [methods])
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [clojure.core.specs.alpha]
+   [clojure.spec.alpha :as s]
+   [methodical.impl.combo.common :as combo.common]
+   [methodical.interface]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (methodical.interface MethodCombination)))
+
+(ns methodical.impl.combo.threaded
+  (:refer-clojure :exclude [methods])
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [methodical.impl.combo.common :as combo.common]
+   [methodical.interface]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (methodical.interface MethodCombination)))
+  
+(ns methodical.impl.dispatcher.everything
+  (:refer-clojure :exclude [methods])
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [methodical.impl.dispatcher.common :as dispatcher.common]
+   [methodical.interface :as i]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (methodical.interface Dispatcher)))
+ 
+(ns methodical.impl.dispatcher.standard
+  "A single-hierarchy dispatcher that behaves similarly to the way multimethod dispatch is done by vanilla Clojure
+  multimethods, but with added support for auxiliary methods."
+  (:refer-clojure :exclude [prefers methods])
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [methodical.impl.dispatcher.common :as dispatcher.common]
+   [methodical.interface :as i]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (methodical.interface Dispatcher)))    
+
+(ns methodical.impl.method-table.clojure
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [methodical.impl.method-table.common :as method-table.common]
+   [methodical.interface]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (methodical.interface MethodTable)))   
+   
+(ns methodical.impl.method-table.standard
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [methodical.impl.method-table.common :as method-table.common]
+   [methodical.interface]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (methodical.interface MethodTable)))
+   
+(ns methodical.impl.multifn.cached
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [clojure.datafy :as datafy]
+   [methodical.interface :as i]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (clojure.lang Named)
+   (methodical.interface Cache MultiFnImpl)))
+   
+(ns methodical.impl.multifn.standard
+  "Standard Methodical MultiFn impl."
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [clojure.datafy :as datafy]
+   [methodical.impl.dispatcher.common :as dispatcher.common]
+   [methodical.interface :as i]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (methodical.interface Dispatcher MethodCombination MethodTable MultiFnImpl)))
+   
+
+======================
+Level 2
+======================
+
+(ns methodical.util
+  (:refer-clojure :exclude [prefers prefer-method remove-all-methods])
+  (:require
+   [methodical.impl.standard :as impl.standard]
+   [methodical.interface :as i]
+   [methodical.util.describe :as describe]))
+
+(ns methodical.impl.dispatcher.multi-default
+  "A single-hierarchy dispatcher similar to the standard dispatcher, with one big improvement: when dispatching on
+  multiple values, it supports default methods that specialize on some args and use the default for others. (e.g.
+  `[String :default]`"
+  (:require
+   [clojure.core.protocols :as clojure.protocols]
+   [methodical.impl.dispatcher.common :as dispatcher.common]
+   [methodical.impl.dispatcher.standard :as dispatcher.standard]
+   [methodical.interface :as i]
+   [methodical.util.describe :as describe]
+   [pretty.core :as pretty])
+  (:import
+   (methodical.interface Dispatcher)))
+
+
+======================
+Level 3
+======================
+
+(ns methodical.impl
+  "Convenience constructors for various implementations of the different component parts of a Methodical multifn."
+  (:refer-clojure :exclude [prefers])
+  (:require [methodical.impl.cache.simple :as cache.simple]
+            [methodical.impl.cache.watching :as cache.watching]
+            [methodical.impl.combo.clojure :as combo.clojure]
+            [methodical.impl.combo.clos :as combo.clos]
+            [methodical.impl.combo.operator :as combo.operator]
+            [methodical.impl.combo.threaded :as combo.threaded]
+            [methodical.impl.dispatcher.everything :as dispatcher.everything]
+            [methodical.impl.dispatcher.multi-default :as dispatcher.multi-default]
+            [methodical.impl.dispatcher.standard :as dispatcher.standard]
+            [methodical.impl.method-table.clojure :as method-table.clojure]
+            [methodical.impl.method-table.standard :as method-table.standard]
+            [methodical.impl.multifn.cached :as multifn.cached]
+            [methodical.impl.multifn.standard :as multifn.standard]
+            [methodical.impl.standard :as impl.standard]
+            methodical.interface)
+  (:import methodical.impl.standard.StandardMultiFn
+           [methodical.interface Cache Dispatcher MethodCombination MethodTable MultiFnImpl]))
+  
+(ns methodical.util.trace
+  (:require [clojure.string :as str]
+            [methodical.interface :as i]
+            [methodical.util :as u]
+            [pretty.core :as pretty]
+            [puget.printer :as puget]))
+			
+
+======================
+Level 4
+======================
+
+(ns methodical.macros
+  "Methodical versions of vanilla Clojure [[defmulti]] and [[defmethod]] macros."
+  (:refer-clojure :exclude [defmulti defmethod])
+  (:require
+   [clojure.core.specs.alpha]
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
+   [methodical.impl :as impl]
+   [methodical.interface :as i]
+   [methodical.macros.validate-arities :as validate-arities]
+   [methodical.util :as u])
+  (:import
+   (methodical.impl.standard StandardMultiFn)))
+ 
+
+======================
+Level 5
+====================== 
+
+(ns methodical.core
+  "Combined interface to everything in Methodical you'd normally want to use."
+  (:refer-clojure :exclude [defmulti defmethod methods get-method remove-method
+                            remove-all-methods prefer-method prefers])
+  (:require methodical.impl
+            methodical.interface
+            methodical.macros
+            methodical.util
+            methodical.util.describe
+            methodical.util.dispatch
+            methodical.util.trace
+            [potemkin :as p]))
+			
+
+
+==========================================
+Tests  
+==========================================
+  
+======================
+Level 0
+======================  
+
+(ns methodical.impl.combo.common-test
+  (:require [clojure.test :as t]
+            [methodical.impl.combo.common :as combo.common])) 
+PASSED
+
+(ns methodical.impl.dispatcher.common-test
+  (:require [clojure.test :as t]
+            [methodical.impl.dispatcher.common :as dispatcher.common]))	
+PASSED
+
+(ns methodical.impl.method-table.common-test
+  (:require
+   [clojure.test :as t]
+   [methodical.impl.method-table.common :as method-table.common]))
+PASSED
+			
+
+======================
+Level 1
+====================== 
+
+(ns methodical.impl.cache.watching-test
+  (:require [clojure.test :as t]
+            [methodical.impl.cache.watching :as cache.watching]
+            methodical.interface
+            [pretty.core :as pretty])
+  (:import methodical.impl.cache.watching.WatchingCache
+           methodical.interface.Cache))
+PASSED		   
+		 
+
+(ns methodical.impl.combo.threaded-test
+  (:require [clojure.test :as t]
+            [methodical.impl.combo.threaded :as combo.threaded]
+            [methodical.interface :as i]))
+PASSED
+			
+(ns methodical.impl.method-table.clojure-test
+  (:require [clojure.test :as t]
+            [methodical.impl.method-table.clojure :as method-table.clojure]))	
+PASSED
+
+(ns methodical.impl.method-table.standard-test
+  (:require
+   [clojure.test :as t]
+   [clojure.tools.reader.edn :as edn]
+   [methodical.impl.method-table.standard :as method-table.standard]
+   [methodical.interface :as i]))		
+
+FAIL: Need to download clojure/tools/reader/edn  -- tools.reader package   
+Tests not depending on tools.reader.edn all pass.
+
+======================
+Level 2
+====================== 
+
+
+======================
+Level 3
+====================== 
+
+
+======================
+Level 4
+====================== 
+
+
+======================
+Level 5
+====================== 
+  
+(ns methodical.clojure-test
+  "Tests to ensure we can replicate the basic behavior of vanilla Clojure multimethods."
+  (:require [clojure.test :as t]
+            [methodical.core :as m]
+            [methodical.impl :as impl])) 
+			
+PASSED
+   
+(ns methodical.datafy-test
+  (:require
+   [clojure.datafy :as datafy]
+   [clojure.test :as t]
+   [methodical.core :as m]))   
+   
+PASSED
+   
+(ns methodical.diamond-inheritance-test
+  (:require  [clojure.test :as t]
+             [methodical.core :as m]))
+			 
+PASSED
+
+(ns methodical.macros-test
+  (:require
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
+   [clojure.test :as t]
+   [methodical.core :as m]
+   [methodical.impl :as impl]
+   [methodical.interface :as i]
+   [methodical.macros :as macros]
+   [methodical.util :as u]
+   [potemkin.namespaces :as p.namespaces])) 
+
+PASSED
+
+	
+(ns methodical.util-test
+  (:require
+   [clojure.test :as t]
+   [clojure.walk :as walk]
+   [methodical.core :as m]
+   [methodical.impl :as impl]
+   [methodical.interface :as i]
+   [methodical.util :as u]))
+   
+PASSED
+
+(ns methodical.impl.dispatcher-test
+  "Tests that run against all of our dispatchers."
+  (:require [clojure.test :as t]
+            [methodical.core :as m]))
+			
+PASSED
+
+(ns methodical.impl.standard-test
+  (:require [clojure.test :as t]
+            [methodical.core :as m]
+            [methodical.impl :as impl]
+            [methodical.impl.standard :as impl.standard]
+            [methodical.interface :as i]))	   
+			
+PASSED
+ 
+(ns methodical.impl.combo.clojure-test
+  (:require [clojure.test :as t]
+            [methodical.core :as m]
+            [methodical.impl.combo.clojure :as combo.clojure]
+            [methodical.interface :as i]))  
+PASSED
+			
+(ns methodical.impl.combo.clos-test
+  (:require [clojure.string :as str]
+            [clojure.test :as t]
+            [methodical.core :as m]
+            [methodical.impl.combo.clos :as combo.clos]
+            [methodical.interface :as i]))
+PASSED -- required fixing a bug in clojure.lang.Keyword
+
+(ns methodical.impl.combo.operator-test
+  (:require
+   [clojure.string :as str]
+   [clojure.test :as t]
+   [methodical.core :as m]
+   [methodical.impl.combo.operator :as combo.operator]
+   [methodical.interface :as i]))	
+PASSED
+
+(ns methodical.impl.dispatcher.everything-test
+  (:require [clojure.string :as str]
+            [clojure.test :as t]
+            [methodical.core :as m]))		
+FAIL in (e2e-test) (:0)
+expected: (= ["Initiating shutdown..." "Shutting down web server..." "Shutting down task scheduler..."] (str/split-lines (with-out-str (shutdown!))))
+  actual: (not (= ["Initiating shutdown..." "Shutting down web server..." "Shutting down task scheduler..."] ["Initiating shutdown..." "Shutting down web server..." "Shutting down task scheduler..." ""]))			
+  
+This is not due to needing platform-newlines.  Rather this is a bug in clojure.string/split-lines.
+
+
+(ns methodical.impl.dispatcher.multi-default-test
+  (:require
+   [clojure.test :as t]
+   [methodical.core :as m]
+   [methodical.impl.dispatcher.multi-default :as dispatcher.multi-default]
+   [methodical.interface])
+  (:import
+   (methodical.interface MethodTable)))
+PASSED
+
+(ns methodical.impl.dispatcher.standard-test
+  (:require
+   [clojure.test :as t]
+   [methodical.core :as m]
+   [methodical.impl :as impl]
+   [methodical.interface :as i])
+  (:import
+   (methodical.interface MethodTable)))
+   
+PASSED
+   
+(ns methodical.impl.multifn.cached-test
+  (:require [clojure.math.combinatorics :as combo]
+            [clojure.test :as t]
+            [methodical.core :as m]))
+			
+**  NEEDS clojure/math/combinatorics -- just one function to replicate.
+** math.combinatorics should work in ClojureCLR as is.
+
+(ns methodical.impl.multifn.standard-test
+  (:require
+   [clojure.math.combinatorics :as combo]
+   [clojure.test :as t]
+   [methodical.core :as m]
+   [methodical.impl.multifn.standard :as multifn.standard]))	
+PASSED   
+			
+(ns methodical.util.describe-test
+  (:require
+   [clojure.string :as str]
+   [clojure.test :as t]
+   [methodical.core :as m]
+   [methodical.util.describe :as describe]))  
+   
+PASSED
+   
+(ns methodical.util.dispatch-test
+  (:require
+   [clojure.string :as str]
+   [clojure.test :as t]
+   [methodical.core :as m]))
+   
+PASSED
+
+(ns methodical.util.trace-test
+  (:require [clojure.string :as str]
+            [clojure.test :as t]
+            [methodical.core :as m]
+            [methodical.util.trace :as trace]
+            [pretty.core :as pretty]))
+   
+6 fail, 1 error
